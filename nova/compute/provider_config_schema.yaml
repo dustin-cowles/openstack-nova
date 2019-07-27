@@ -1,0 +1,110 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+type: object
+properties:
+  meta:
+    type: object
+    properties:
+      # Version ($Major, $minor) of the schema must successfully parse
+      # documents conforming to ($Major, 0..$minor). Any breaking schema change
+      # (e.g. removing fields, adding new required fields, imposing a stricter
+      # pattern on a value, etc.) must bump $Major.
+      schema_version:
+        type: string
+        # Using an enum here allows us to be explicit about which versions are
+        # supported, including allowing us to easily blacklist certain versions
+        enum:
+          - "1.0"
+    required:
+      - schema_version
+  providers:
+    type: array
+    items:
+      type: object
+      properties:
+        identification:
+          $ref: '#/provider_definitions/provider_identification'
+        inventories:
+          $ref: '#/provider_definitions/provider_inventories'
+        traits:
+          $ref: '#/provider_definitions/provider_traits'
+      required:
+        - identification
+      additionalProperties: false
+required:
+  - meta
+additionalProperties: false
+
+provider_definitions:
+  provider_identification:
+    # Identify a single provider to configure.
+    # Exactly one of uuid or name is mandatory. Specifying both is an error.
+    # The uuid can be set to the specialized string `$COMPUTE_NODE` which will
+    # cause the consuming compute service to apply the configuration in this
+    # provider to all nodes it manages.
+    type: object
+    properties:
+      uuid:
+        oneOf:
+          - type: string
+            format: uuid
+          - type: string
+            enum:
+              - "$COMPUTE_NODE"
+      name:
+        type: string
+        minLength: 1
+    oneOf:
+      - required:
+        - uuid
+      - required:
+        - name
+    maxProperties: 1
+  provider_inventories:
+    # Allows the admin to specify various adjectives to create and manage
+    # providers' inventories. This list of adjectives can be extended in the
+    # future as the schema evolves to meet new use cases. For now, only one
+    # adjective, `additional`, is supported.
+    type: object
+    properties:
+      additional:
+        type: array
+        items:
+          patternProperties:
+            # Allows any key name here, comparison against Nova standard
+            # resource classes (which cannot be used) will be handled in
+            # Placement. Total is required but other properties will be
+            # defaulted in Placement.
+            ^.*$:
+              type: object
+              properties:
+                total:
+                  type: int
+              required:
+                - total
+              additionalProperties: true
+            additionalProperties: false
+  provider_traits:
+    # Allows the admin to specify various adjectives to create and manage
+    # providers' traits. This list of adjectives can be extended in the
+    # future as the schema evolves to meet new use cases. For now, only one
+    # adjective, `additional`, is supported.
+    type: object
+    properties:
+      additional:
+        type: array
+        items:
+          # Only custom traits are allowed, but comparison against standard
+          # traits will be handled in Placement.
+          type: string
+      additionalProperties: false
